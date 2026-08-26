@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone VARCHAR(15) UNIQUE NOT NULL,
     aadhaar_hash VARCHAR(255),
     otp_verified BOOLEAN DEFAULT FALSE,
+    role VARCHAR(20) DEFAULT 'citizen' CHECK (role IN ('citizen', 'officer', 'admin')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -46,3 +47,6 @@ CREATE TABLE IF NOT EXISTS status_logs (
     note TEXT,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Ensure the role column exists for existing tables
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'citizen';

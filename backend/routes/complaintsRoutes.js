@@ -4,6 +4,59 @@ const { body, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const db = require('../db');
 const { generateRef } = require('../utils/generateRef');
+const Anthropic = require('@anthropic-ai/sdk');
+
+const anthropic = new Anthropic({
+  apiKey: process.env.LLM_API_KEY || 'dummy_key',
+});
+
+// @route   POST /api/complaints/voice-parse
+// @desc    Parse spoken complaint via LLM
+// @access  Private
+router.post(
+  '/voice-parse',
+  [
+    auth,
+    body('transcript', 'Transcript is required').not().isEmpty()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { transcript } = req.body;
+
+    try {
+      const response = await anthropic.messages.create({
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 1024,
+        system: "You are extracting structured complaint data from a citizen's spoken complaint in Hindi or English. Return ONLY valid JSON with fields: type (civic or legal), category (pothole/streetlight/garbage/water/theft/assault/lost_item/other), description (cleaned up, 2-3 lines), urgency (low/medium/high), location_mentioned (any place name mentioned or null). Do not include any text outside the JSON.",
+        messages: [
+          { role: 'user', content: transcript }
+        ]
+      });
+
+      const jsonString = response.content[0].text;
+      const parsedData = JSON.parse(jsonString);
+
+      res.json(parsedData);
+    } catch (err) {
+      console.error(err.message);
+      // For hackathon fallback if API key is invalid/dummy
+      if (err.status === 401 || err.message.includes('API key')) {
+        return res.json({
+          type: 'civic',
+          category: 'pothole',
+          description: `[MOCK] ${transcript}`,
+          urgency: 'medium',
+          location_mentioned: null
+        });
+      }
+      res.status(500).send('LLM parsing error');
+    }
+  }
+);
 
 // @route   POST /api/complaints
 // @desc    Register a new complaint
@@ -29,18 +82,51 @@ router.post(
     const reference_number = generateRef();
 
     try {
+      let assigned_department = null;
+      let status = 'filed';
+
+      if (type === 'civic') {
+        // Mock auto-assign to department based on pincode/area
+        // In a real app, you'd lookup `SELECT id FROM departments WHERE area_pincode = ? AND type = 'municipal'`
+        // For hackathon, we'll try to find any municipal department
+        const deptRes = await db.query("SELECT id FROM departments WHERE type = 'municipal' LIMIT 1");
+        if (deptRes.rows.length > 0) {
+          assigned_department = deptRes.rows[0].id;
+        }
+      } else if (type === 'legal') {
+        if (cognizable === true) {
+          // Flag for police verification queue
+          // Optionally assign to a police department
+          const deptRes = await db.query("SELECT id FROM departments WHERE type = 'police' LIMIT 1");
+          if (deptRes.rows.length > 0) {
+            assigned_department = deptRes.rows[0].id;
+          }
+          // Note: status remains 'filed', but it's queued for verification
+        } else {
+          // Non-cognizable, treated as instant e-complaint
+        }
+      }
+
       const newComplaint = await db.query(
         `INSERT INTO complaints 
-        (reference_number, user_id, type, category, subcategory, description, location_lat, location_lng, address_text, cognizable) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-        [reference_number, user_id, type, category, subcategory, description, location_lat, location_lng, address_text, cognizable]
+        (reference_number, user_id, type, category, subcategory, description, location_lat, location_lng, address_text, cognizable, assigned_department, status) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        [reference_number, user_id, type, category, subcategory, description, location_lat, location_lng, address_text, cognizable, assigned_department, status]
       );
 
       // Log the initial status
+      let logNote = 'Complaint filed by user';
+      if (type === 'legal' && cognizable) {
+        logNote += ' (Flagged for Police Verification)';
+      }
+
       await db.query(
         `INSERT INTO status_logs (complaint_id, new_status, note) VALUES ($1, $2, $3)`,
-        [newComplaint.rows[0].id, 'filed', 'Complaint filed by user']
+        [newComplaint.rows[0].id, status, logNote]
       );
+
+      // Mock sending SMS/notification
+      console.log(`[TWILIO MOCK SMS] Dear Citizen, your NagrikTrack complaint has been registered. Ref: ${reference_number}. Track it online.`);
 
       res.json(newComplaint.rows[0]);
     } catch (err) {

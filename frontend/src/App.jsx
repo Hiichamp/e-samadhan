@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
 import { useAuth } from './AuthContext';
+import ComplaintForm from './ComplaintForm';
+import TrackStatus from './TrackStatus';
+import MyComplaints from './MyComplaints';
+import AdminPanel from './AdminPanel';
+import PublicDashboard from './PublicDashboard';
+import PwaPrompt from './PwaPrompt';
 
 function App() {
   const { user, login, logout, loading } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
+  const [currentView, setCurrentView] = useState('home'); // 'home', 'file', 'track', 'my_complaints', 'admin', 'dashboard'
+  const [trackRef, setTrackRef] = useState('');
+  
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState(1); // 1: phone, 2: otp
@@ -53,8 +62,33 @@ function App() {
     }
   };
 
+  const handleFileComplaintClick = () => {
+    if (user) {
+      setCurrentView('file');
+    } else {
+      setShowLogin(true);
+    }
+  };
+
+  const handleMyComplaintsClick = () => {
+    if (user) {
+      setCurrentView('my_complaints');
+    } else {
+      setShowLogin(true);
+    }
+  };
+
+  const openTracker = (refNumber = '') => {
+    setTrackRef(refNumber);
+    setCurrentView('track');
+  };
+
+  // Bridge for ComplaintForm success screen
+  window.handleTrackNewComplaint = openTracker;
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col relative overflow-hidden">
+      <PwaPrompt />
       {/* Decorative Background Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary-200/50 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-orange/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -62,7 +96,7 @@ function App() {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('home')}>
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center text-white font-bold text-xl shadow-lg">
               N
             </div>
@@ -71,26 +105,32 @@ function App() {
             </span>
           </div>
           <nav className="hidden md:flex gap-8">
-            <a href="#" className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors">Home</a>
-            <a href="#" className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors">Track Status</a>
-            <a href="#" className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors">Dashboard</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('home'); }} className={`text-sm font-medium transition-colors ${currentView === 'home' ? 'text-primary-600' : 'text-slate-600 hover:text-primary-600'}`}>Home</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); openTracker(); }} className={`text-sm font-medium transition-colors ${currentView === 'track' ? 'text-primary-600' : 'text-slate-600 hover:text-primary-600'}`}>Track Status</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('dashboard'); }} className={`text-sm font-medium transition-colors ${currentView === 'dashboard' ? 'text-primary-600' : 'text-slate-600 hover:text-primary-600'}`}>Transparency</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); handleMyComplaintsClick(); }} className={`text-sm font-medium transition-colors ${currentView === 'my_complaints' ? 'text-primary-600' : 'text-slate-600 hover:text-primary-600'}`}>My Complaints</a>
+            {(user?.role === 'admin' || user?.role === 'officer') && (
+              <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('admin'); }} className={`text-sm font-medium transition-colors ${currentView === 'admin' ? 'text-brand-orange' : 'text-brand-orange/70 hover:text-brand-orange'}`}>Admin Panel</a>
+            )}
           </nav>
           <div>
             {loading ? (
-               <div className="w-24 h-8 bg-slate-200 animate-pulse rounded-full"></div>
+              <div className="w-8 h-8 rounded-full border-2 border-primary-600 border-t-transparent animate-spin"></div>
             ) : user ? (
               <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-slate-700">Hi, {user.name}</span>
-                <button 
-                  onClick={logout}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-full text-sm font-medium transition-all shadow-sm">
-                  Logout
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-bold text-sm">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 hidden md:block">{user.name || 'User'}</span>
+                  {(user.role === 'admin' || user.role === 'officer') && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-orange/20 text-brand-orange px-2 py-0.5 rounded ml-1 hidden md:block">Officer</span>
+                  )}
+                </div>
+                <button onClick={() => { logout(); setCurrentView('home'); }} className="text-sm text-slate-500 hover:text-red-500 transition-colors font-medium">Logout</button>
               </div>
             ) : (
-              <button 
-                onClick={() => setShowLogin(true)}
-                className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-full text-sm font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+              <button onClick={() => setShowLogin(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm">
                 Login / Register
               </button>
             )}
@@ -99,65 +139,83 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center justify-center relative z-10 w-full text-center">
+      <main className={`flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center relative z-10 w-full text-center ${currentView === 'admin' || currentView === 'dashboard' ? 'max-w-[1400px]' : ''}`}>
         
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-sm font-semibold mb-6 border border-primary-100 shadow-sm">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
-          </span>
-          Next-Gen Civic & Legal Platform
-        </div>
-
-        <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-6 max-w-3xl leading-tight">
-          Voice your concern. <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-brand-green">We structure the rest.</span>
-        </h1>
-        
-        <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl font-light">
-          A seamless civic and legal complaint registration platform for rural and tier-2/3 India. 
-          Simply speak your problem, and AI will automatically file it for you.
-        </p>
-
-        <div className="flex flex-col sm:flex-row gap-4 mb-16">
-          <button className="flex items-center justify-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
-            Speak Your Problem
-          </button>
-          <button className="flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 hover:border-primary-200 hover:bg-primary-50 px-8 py-4 rounded-full text-lg font-semibold transition-all shadow-sm hover:shadow-md transform hover:-translate-y-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M8 12h8"></path><path d="M12 8v8"></path></svg>
-            Manual Entry
-          </button>
-        </div>
-
-        {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl text-left">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-green"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>
+        {currentView === 'file' ? (
+          <ComplaintForm onBack={() => setCurrentView('home')} />
+        ) : currentView === 'track' ? (
+          <TrackStatus onBack={() => setCurrentView('home')} defaultRef={trackRef} />
+        ) : currentView === 'my_complaints' ? (
+          <MyComplaints onBack={() => setCurrentView('home')} onTrack={openTracker} />
+        ) : currentView === 'admin' ? (
+          <AdminPanel onBack={() => setCurrentView('home')} />
+        ) : currentView === 'dashboard' ? (
+          <PublicDashboard onBack={() => setCurrentView('home')} />
+        ) : (
+          <>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-sm font-semibold mb-6 border border-primary-100 shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
+              </span>
+              Next-Gen Civic & Legal Platform
             </div>
-            <div className="w-12 h-12 bg-brand-green/10 text-brand-green rounded-xl flex items-center justify-center mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg>
-            </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">Civic Track</h3>
-            <p className="text-slate-600 leading-relaxed">
-              Report potholes, streetlight issues, garbage buildup, or water supply disruptions. Routed directly to municipal departments.
+
+            <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-6 max-w-3xl leading-tight">
+              Voice your concern. <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-brand-green">We structure the rest.</span>
+            </h1>
+            
+            <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl font-light">
+              A seamless civic and legal complaint registration platform for rural and tier-2/3 India. 
+              Simply speak your problem, and AI will automatically file it for you.
             </p>
-          </div>
-          
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-orange"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path></svg>
+
+            <div className="flex flex-col sm:flex-row gap-4 mb-16">
+              <button 
+                onClick={handleFileComplaintClick}
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+                Speak Your Problem
+              </button>
+              <button 
+                onClick={handleFileComplaintClick}
+                className="flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 hover:border-primary-200 hover:bg-primary-50 px-8 py-4 rounded-full text-lg font-semibold transition-all shadow-sm hover:shadow-md transform hover:-translate-y-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M8 12h8"></path><path d="M12 8v8"></path></svg>
+                Manual Entry
+              </button>
             </div>
-            <div className="w-12 h-12 bg-brand-orange/10 text-brand-orange rounded-xl flex items-center justify-center mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path><path d="m9 12 2 2 4-4"></path></svg>
+
+            {/* Feature Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl text-left">
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-green"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>
+                </div>
+                <div className="w-12 h-12 bg-brand-green/10 text-brand-green rounded-xl flex items-center justify-center mb-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg>
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Civic Track</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  Report potholes, streetlight issues, garbage buildup, or water supply disruptions. Routed directly to municipal departments.
+                </p>
+              </div>
+              
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-orange"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path></svg>
+                </div>
+                <div className="w-12 h-12 bg-brand-orange/10 text-brand-orange rounded-xl flex items-center justify-center mb-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path><path d="m9 12 2 2 4-4"></path></svg>
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Legal Track</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  Instant e-complaint generation for non-cognizable issues. Major incidents get verified and tracked with full transparency.
+                </p>
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">Legal Track</h3>
-            <p className="text-slate-600 leading-relaxed">
-              Instant e-complaint generation for non-cognizable issues. Major incidents get verified and tracked with full transparency.
-            </p>
-          </div>
-        </div>
+          </>
+        )}
       </main>
       
       {/* Footer */}
