@@ -1,6 +1,58 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useAuth } from './AuthContext';
 
 function App() {
+  const { user, login, logout, loading } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState(1); // 1: phone, 2: otp
+  const [error, setError] = useState('');
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStep(2);
+      } else {
+        setError(data.msg || data.errors?.[0]?.msg || 'Error sending OTP');
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        login(data.token, data.user);
+        setShowLogin(false);
+        setStep(1);
+        setPhone('');
+        setOtp('');
+      } else {
+        setError(data.msg || 'Invalid OTP');
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col relative overflow-hidden">
       {/* Decorative Background Elements */}
@@ -24,9 +76,24 @@ function App() {
             <a href="#" className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors">Dashboard</a>
           </nav>
           <div>
-            <button className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-              Admin Login
-            </button>
+            {loading ? (
+               <div className="w-24 h-8 bg-slate-200 animate-pulse rounded-full"></div>
+            ) : user ? (
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-slate-700">Hi, {user.name}</span>
+                <button 
+                  onClick={logout}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-full text-sm font-medium transition-all shadow-sm">
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => setShowLogin(true)}
+                className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-full text-sm font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                Login / Register
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -94,11 +161,84 @@ function App() {
       </main>
       
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-8 mt-auto">
+      <footer className="border-t border-slate-200 bg-white py-8 mt-auto relative z-10">
         <div className="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm">
           &copy; {new Date().getFullYear()} NagrikTrack. Designed for accessibility and transparency.
         </div>
       </footer>
+
+      {/* Login Modal */}
+      {showLogin && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <button 
+              onClick={() => { setShowLogin(false); setStep(1); setError(''); }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+            </button>
+            
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome Back</h2>
+            <p className="text-slate-500 mb-6">
+              {step === 1 ? 'Enter your phone number to continue' : 'Enter the OTP sent to your phone'}
+            </p>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium mb-6 flex items-center gap-2">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg>
+                {error}
+              </div>
+            )}
+
+            {step === 1 ? (
+              <form onSubmit={handleSendOtp} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">+91</span>
+                    <input 
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="9876543210"
+                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+                <button 
+                  type="submit"
+                  className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-md mt-2"
+                >
+                  Send OTP
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
+                 <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Enter OTP</label>
+                  <input 
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="123456"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all tracking-widest text-center text-lg font-bold"
+                    required
+                  />
+                  <p className="text-xs text-slate-400 text-center mt-2">Hackathon test OTP is 123456</p>
+                </div>
+                <button 
+                  type="submit"
+                  className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-md mt-2"
+                >
+                  Verify & Login
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
