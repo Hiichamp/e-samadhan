@@ -291,7 +291,7 @@ function App() {
             <div className="w-8 h-8 bg-primary-900 rounded-xl flex items-center justify-center text-white">
               <span className="w-4 h-4">{Icon.shield}</span>
             </div>
-            <span className="font-black text-primary-950 text-lg tracking-tight hidden sm:block">E-Samadhan</span>
+            <span className="font-black text-primary-950 text-lg tracking-tight block">E-Samadhan</span>
           </button>
 
           {/* Desktop Nav */}
