@@ -7,18 +7,28 @@ const db = require('../db');
 // @access  Public
 router.get('/stats', async (req, res) => {
   try {
-    // 1. Total complaints filed (last 30 days) - Real DB Query
-    const totalResult = await db.query(`
-      SELECT COUNT(*) as count 
-      FROM complaints 
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-    `);
-    const realTotal = parseInt(totalResult.rows[0].count);
-    
-    // For a hackathon demo, if there are less than 50 real complaints, base it on a larger mock pool
-    const totalComplaints = realTotal > 50 ? realTotal : realTotal + 342;
+    // 1. Total complaints filed
+    const totalResult = await db.query(`SELECT COUNT(*) as count FROM complaints`);
+    const totalComplaints = parseInt(totalResult.rows[0].count) || 0;
 
-    // 2. Department-wise Resolution Rate
+    // 2. Resolved complaints for resolution rate
+    const resolvedResult = await db.query(`SELECT COUNT(*) as count FROM complaints WHERE status = 'resolved'`);
+    const resolvedComplaints = parseInt(resolvedResult.rows[0].count) || 0;
+    const overallResolutionRate = totalComplaints > 0 ? Math.round((resolvedComplaints / totalComplaints) * 100) : 0;
+
+    // 3. Departments Count
+    const deptCountResult = await db.query(`SELECT COUNT(*) as count FROM departments`);
+    const totalDepartments = parseInt(deptCountResult.rows[0].count) || 0;
+
+    // 4. Avg Resolution Time (in days)
+    const avgTimeResult = await db.query(`
+      SELECT AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/86400) as avg_days 
+      FROM complaints 
+      WHERE status = 'resolved'
+    `);
+    const avgResolutionDays = avgTimeResult.rows[0].avg_days ? parseFloat(avgTimeResult.rows[0].avg_days).toFixed(1) : 0;
+
+    // 5. Department-wise Resolution Rate (Real Data)
     const deptResult = await db.query(`
       SELECT 
         d.name as department,
@@ -36,39 +46,45 @@ router.get('/stats', async (req, res) => {
       pending: parseInt(row.total) - parseInt(row.resolved)
     })).filter(r => r.total > 0);
 
-    // If DB has no significant data, use dummy data for visual impact on charts
-    if (resolutionRates.length === 0) {
-      resolutionRates = [
-        { department: 'Water Supply', rate: 78, pending: 12, total: 54 },
-        { department: 'Public Works (PWD)', rate: 45, pending: 89, total: 161 },
-        { department: 'Sanitation', rate: 92, pending: 5, total: 62 },
-        { department: 'Streetlights', rate: 64, pending: 34, total: 94 },
-        { department: 'Local Police', rate: 81, pending: 20, total: 105 },
-      ];
-    }
+    // 6. Avg Resolution Time by Category
+    const catTimeResult = await db.query(`
+      SELECT 
+        category,
+        AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/86400) as avg_days
+      FROM complaints
+      WHERE status = 'resolved'
+      GROUP BY category
+      ORDER BY avg_days DESC
+      LIMIT 6
+    `);
+    const avgResolutionTime = catTimeResult.rows.map(row => ({
+      category: row.category,
+      days: parseFloat(row.avg_days).toFixed(1)
+    }));
 
-    // 3. Average Resolution Time by Category (Mocked for dashboard)
-    const avgResolutionTime = [
-      { category: 'Water Supply', days: 2.4 },
-      { category: 'Sanitation', days: 3.1 },
-      { category: 'Streetlights', days: 5.5 },
-      { category: 'Roads/Potholes', days: 14.2 },
-      { category: 'Lost Items', days: 7.0 },
-      { category: 'Minor Theft', days: 21.5 },
-    ];
-
-    // 4. Over Time Data for Line Chart (Mocked 6 months trend)
-    const trendData = [
-      { month: 'Mar', filed: 120, resolved: 95 },
-      { month: 'Apr', filed: 150, resolved: 110 },
-      { month: 'May', filed: 180, resolved: 160 },
-      { month: 'Jun', filed: 210, resolved: 185 },
-      { month: 'Jul', filed: 190, resolved: 175 },
-      { month: 'Aug', filed: 240, resolved: Math.floor(realTotal * 0.7) + 120 },
-    ];
+    // 7. Trend Data (Last 6 months)
+    const trendResult = await db.query(`
+      SELECT 
+        TO_CHAR(created_at, 'Mon') as month,
+        EXTRACT(MONTH FROM created_at) as month_num,
+        COUNT(id) as filed,
+        SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved
+      FROM complaints
+      WHERE created_at >= NOW() - INTERVAL '6 months'
+      GROUP BY month, month_num
+      ORDER BY month_num ASC
+    `);
+    const trendData = trendResult.rows.map(row => ({
+      month: row.month,
+      filed: parseInt(row.filed),
+      resolved: parseInt(row.resolved)
+    }));
 
     res.json({
       totalComplaints,
+      overallResolutionRate,
+      totalDepartments,
+      avgResolutionDays,
       resolutionRates,
       avgResolutionTime,
       trendData

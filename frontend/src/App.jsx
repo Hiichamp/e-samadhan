@@ -1,301 +1,294 @@
-import React, { useState } from 'react';
-import { useAuth } from './AuthContext';
+import React, { useState, useEffect } from 'react';
+
 import ComplaintForm from './ComplaintForm';
 import TrackStatus from './TrackStatus';
-import MyComplaints from './MyComplaints';
-import AdminPanel from './AdminPanel';
+
 import PublicDashboard from './PublicDashboard';
 import PwaPrompt from './PwaPrompt';
 
+/* ─────────────────── tiny SVG icons ─────────────────── */
+const Icon = {
+  mic: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>,
+  edit: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>,
+  search: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+  home: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  file: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+  grid: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
+  user: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  x: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+  check: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  shield: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>,
+  zap: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+  globe: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+};
+
+
+/* ─────────────────── Stat Card ─────────────────── */
+function StatCard({ icon, value, label, color }) {
+  return (
+    <div className="bg-white rounded-2xl p-5 flex items-center gap-4 border border-slate-100 shadow-sm">
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
+        <span className="w-6 h-6">{icon}</span>
+      </div>
+      <div>
+        <p className="text-2xl font-black text-slate-900">{value}</p>
+        <p className="text-xs text-slate-500 font-medium">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────── Feature Card ─────────────────── */
+function FeatureCard({ icon, title, desc, tag, tagColor }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+      <div className="flex items-start justify-between mb-3">
+        <div className="w-11 h-11 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center">
+          <span className="w-5 h-5">{icon}</span>
+        </div>
+        {tag && <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${tagColor}`}>{tag}</span>}
+      </div>
+      <h3 className="font-bold text-slate-800 text-base mb-1">{title}</h3>
+      <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
+    </div>
+  );
+}
+
+/* ─────────────────── Bottom Nav ─────────────────── */
+function BottomNav({ currentView, onNavigate }) {
+  const tabs = [
+    { id: 'home', label: 'Home', icon: Icon.home },
+    { id: 'file', label: 'File', icon: Icon.edit },
+    { id: 'track', label: 'Track', icon: Icon.search },
+    { id: 'dashboard', label: 'Stats', icon: Icon.grid },
+  ];
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 md:hidden z-50 px-2 pb-safe">
+      <div className="flex items-center justify-around py-1">
+        {tabs.map(tab => {
+          const active = tab.id === currentView || (tab.id === 'file' && currentView === 'file');
+          return (
+            <button key={tab.id} onClick={() => onNavigate(tab.id)}
+              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all ${
+                active ? 'text-primary-900' : 'text-slate-400'
+              }`}>
+              <span className={`w-5 h-5 transition-transform ${active ? 'scale-110' : ''}`}>{tab.icon}</span>
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${active ? 'text-primary-900' : 'text-slate-400'}`}>
+                {tab.label}
+              </span>
+              {active && <span className="w-1 h-1 rounded-full bg-primary-700 mt-0.5" />}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+/* ─────────────────── HOME PAGE ─────────────────── */
+function HomePage({ onFileComplaint, onTrack, onDashboard }) {
+  const [stats, setStats] = useState({
+    totalComplaints: '...',
+    overallResolutionRate: '...',
+    avgResolutionDays: '...',
+    totalDepartments: '...',
+  });
+
+  useEffect(() => {
+    fetch('http://localhost:5000/api/dashboard/stats')
+      .then(res => res.json())
+      .then(data => {
+        setStats({
+          totalComplaints: data.totalComplaints,
+          overallResolutionRate: data.overallResolutionRate,
+          avgResolutionDays: data.avgResolutionDays,
+          totalDepartments: data.totalDepartments,
+        });
+      })
+      .catch(err => console.error("Failed to load stats:", err));
+  }, []);
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8 pb-32 md:pb-12">
+
+      {/* Hero */}
+      <div className="relative bg-primary-950 rounded-3xl overflow-hidden mb-6 text-white p-8 md:p-12">
+        {/* decorative circles */}
+        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-primary-700/40" />
+        <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-brand-green/20" />
+
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1 text-xs font-semibold mb-4 text-white/80">
+            <span className="w-2 h-2 rounded-full bg-brand-green animate-pulse" />
+            AI-Powered Grievance Portal
+          </div>
+          <h1 className="text-3xl md:text-5xl font-black leading-tight mb-3">
+            Speak Up.<br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-green to-primary-300">
+              Get Heard.
+            </span>
+          </h1>
+          <p className="text-white/70 text-sm md:text-base max-w-md leading-relaxed mb-8">
+            File civic or legal complaints using your voice in Hindi or English. AI structures it. We track it. You stay informed.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button onClick={() => onFileComplaint()}
+              className="flex items-center justify-center gap-2.5 bg-white text-primary-900 font-bold px-6 py-3.5 rounded-xl hover:bg-primary-50 transition-colors shadow-lg">
+              <span className="w-5 h-5">{Icon.mic}</span>
+              File a Complaint
+            </button>
+            <button onClick={onTrack}
+              className="flex items-center justify-center gap-2.5 bg-white/10 border border-white/25 text-white font-semibold px-6 py-3.5 rounded-xl hover:bg-white/20 transition-colors">
+              <span className="w-5 h-5">{Icon.search}</span>
+              Track Status
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <StatCard icon={Icon.file} value={stats.totalComplaints} label="Complaints Filed" color="bg-primary-50 text-primary-700" />
+        <StatCard icon={Icon.check} value={stats.overallResolutionRate !== '...' ? `${stats.overallResolutionRate}%` : '...'} label="Resolution Rate" color="bg-brand-green/20 text-brand-green" />
+        <StatCard icon={Icon.zap} value={stats.avgResolutionDays !== '...' ? `${stats.avgResolutionDays} days` : '...'} label="Avg Resolution" color="bg-brand-amber/20 text-brand-amber" />
+        <StatCard icon={Icon.globe} value={stats.totalDepartments} label="Departments" color="bg-primary-100 text-primary-800" />
+      </div>
+
+      {/* Feature Cards */}
+      <h2 className="text-lg font-black text-slate-900 mb-3">What you can do</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+        <FeatureCard
+          icon={Icon.mic}
+          title="Voice to Complaint"
+          desc="Speak in Hindi or English. AI converts it to a structured form automatically."
+          tag="AI"
+          tagColor="bg-primary-100 text-primary-800"
+        />
+        <FeatureCard
+          icon={Icon.shield}
+          title="Civic & Legal Track"
+          desc="From potholes to police complaints — file any grievance to the right authority."
+          tag="Secure"
+          tagColor="bg-green-100 text-green-800"
+        />
+        <FeatureCard
+          icon={Icon.search}
+          title="Real-time Tracking"
+          desc="Get a reference number and track every stage of your complaint publicly."
+          tag="Transparent"
+          tagColor="bg-amber-100 text-amber-800"
+        />
+      </div>
+
+      {/* Dashboard CTA */}
+      <div onClick={onDashboard}
+        className="cursor-pointer bg-gradient-to-r from-primary-800 to-primary-700 rounded-2xl p-6 flex items-center justify-between text-white group hover:from-primary-700 hover:to-primary-600 transition-all">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-1">Public Accountability</p>
+          <p className="text-lg font-black">View Transparency Dashboard →</p>
+          <p className="text-sm text-white/70 mt-0.5">Department-wise resolution rates & slowest performers</p>
+        </div>
+        <span className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform shrink-0 ml-4">
+          <span className="w-5 h-5">{Icon.grid}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────── ROOT APP ─────────────────── */
 function App() {
-  const { user, login, logout, loading } = useAuth();
-  const [showLogin, setShowLogin] = useState(false);
-  const [currentView, setCurrentView] = useState('home'); // 'home', 'file', 'track', 'my_complaints', 'admin', 'dashboard'
+  const [currentView, setCurrentView] = useState('home');
   const [trackRef, setTrackRef] = useState('');
-  
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState(1); // 1: phone, 2: otp
-  const [error, setError] = useState('');
 
-  const handleSendOtp = async (e) => {
-    e.preventDefault();
-    setError('');
-    try {
-      const res = await fetch('http://localhost:5000/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setStep(2);
-      } else {
-        setError(data.msg || data.errors?.[0]?.msg || 'Error sending OTP');
-      }
-    } catch (err) {
-      setError('Network error');
-    }
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setError('');
-    try {
-      const res = await fetch('http://localhost:5000/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, otp })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        login(data.token, data.user);
-        setShowLogin(false);
-        setStep(1);
-        setPhone('');
-        setOtp('');
-      } else {
-        setError(data.msg || 'Invalid OTP');
-      }
-    } catch (err) {
-      setError('Network error');
-    }
-  };
-
-  const handleFileComplaintClick = () => {
-    if (user) {
-      setCurrentView('file');
-    } else {
-      setShowLogin(true);
-    }
-  };
-
-  const handleMyComplaintsClick = () => {
-    if (user) {
-      setCurrentView('my_complaints');
-    } else {
-      setShowLogin(true);
-    }
-  };
-
-  const openTracker = (refNumber = '') => {
-    setTrackRef(refNumber);
+  const openTracker = (ref = '') => {
+    setTrackRef(ref);
     setCurrentView('track');
   };
 
-  // Bridge for ComplaintForm success screen
   window.handleTrackNewComplaint = openTracker;
 
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col relative overflow-hidden">
-      <PwaPrompt />
-      {/* Decorative Background Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary-200/50 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-orange/10 rounded-full blur-3xl pointer-events-none"></div>
+  const handleBottomNav = (id) => {
+    if (id === 'file')    return setCurrentView('file');
+    if (id === 'track')   return openTracker();
+    setCurrentView(id);
+  };
 
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('home')}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center text-white font-bold text-xl shadow-lg">
-              N
+  const isSubView = currentView !== 'home';
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <PwaPrompt />
+
+      {/* ── HEADER ── */}
+      <header className="glass sticky top-0 z-50 border-b border-slate-200/80">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+
+          {/* Logo */}
+          <button onClick={() => setCurrentView('home')}
+            className="flex items-center gap-2.5 shrink-0">
+            <div className="w-8 h-8 bg-primary-900 rounded-xl flex items-center justify-center text-white">
+              <span className="w-4 h-4">{Icon.shield}</span>
             </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-800 to-primary-600 tracking-tight">
-              NagrikTrack
-            </span>
-          </div>
-          <nav className="hidden md:flex gap-8">
-            <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('home'); }} className={`text-sm font-medium transition-colors ${currentView === 'home' ? 'text-primary-600' : 'text-slate-600 hover:text-primary-600'}`}>Home</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); openTracker(); }} className={`text-sm font-medium transition-colors ${currentView === 'track' ? 'text-primary-600' : 'text-slate-600 hover:text-primary-600'}`}>Track Status</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('dashboard'); }} className={`text-sm font-medium transition-colors ${currentView === 'dashboard' ? 'text-primary-600' : 'text-slate-600 hover:text-primary-600'}`}>Transparency</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); handleMyComplaintsClick(); }} className={`text-sm font-medium transition-colors ${currentView === 'my_complaints' ? 'text-primary-600' : 'text-slate-600 hover:text-primary-600'}`}>My Complaints</a>
-            {(user?.role === 'admin' || user?.role === 'officer') && (
-              <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('admin'); }} className={`text-sm font-medium transition-colors ${currentView === 'admin' ? 'text-brand-orange' : 'text-brand-orange/70 hover:text-brand-orange'}`}>Admin Panel</a>
-            )}
-          </nav>
-          <div>
-            {loading ? (
-              <div className="w-8 h-8 rounded-full border-2 border-primary-600 border-t-transparent animate-spin"></div>
-            ) : user ? (
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-bold text-sm">
-                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                  <span className="text-sm font-medium text-slate-700 hidden md:block">{user.name || 'User'}</span>
-                  {(user.role === 'admin' || user.role === 'officer') && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-orange/20 text-brand-orange px-2 py-0.5 rounded ml-1 hidden md:block">Officer</span>
-                  )}
-                </div>
-                <button onClick={() => { logout(); setCurrentView('home'); }} className="text-sm text-slate-500 hover:text-red-500 transition-colors font-medium">Logout</button>
-              </div>
-            ) : (
-              <button onClick={() => setShowLogin(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm">
-                Login / Register
+            <span className="font-black text-primary-950 text-lg tracking-tight hidden sm:block">E-Samadhan</span>
+          </button>
+
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-1">
+            {[
+              { id: 'home', label: 'Home' },
+              { id: 'track', label: 'Track Status' },
+              { id: 'dashboard', label: 'Dashboard' },
+            ].map(link => (
+              <button key={link.id}
+                onClick={() => link.id === 'track' ? openTracker() : setCurrentView(link.id)}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                  currentView === link.id
+                    ? 'bg-primary-50 text-primary-900'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                }`}>
+                {link.label}
               </button>
-            )}
+            ))}
+            </nav>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setCurrentView('file')}
+              className="hidden sm:flex btn-primary items-center gap-2 py-2 px-4 text-sm">
+              <span className="w-4 h-4">{Icon.edit}</span>
+              File Complaint
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className={`flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center relative z-10 w-full text-center ${currentView === 'admin' || currentView === 'dashboard' ? 'max-w-[1400px]' : ''}`}>
-        
-        {currentView === 'file' ? (
-          <ComplaintForm onBack={() => setCurrentView('home')} />
-        ) : currentView === 'track' ? (
-          <TrackStatus onBack={() => setCurrentView('home')} defaultRef={trackRef} />
-        ) : currentView === 'my_complaints' ? (
-          <MyComplaints onBack={() => setCurrentView('home')} onTrack={openTracker} />
-        ) : currentView === 'admin' ? (
-          <AdminPanel onBack={() => setCurrentView('home')} />
-        ) : currentView === 'dashboard' ? (
-          <PublicDashboard onBack={() => setCurrentView('home')} />
-        ) : (
-          <>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-sm font-semibold mb-6 border border-primary-100 shadow-sm">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
-              </span>
-              Next-Gen Civic & Legal Platform
-            </div>
-
-            <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-6 max-w-3xl leading-tight">
-              Voice your concern. <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-brand-green">We structure the rest.</span>
-            </h1>
-            
-            <p className="text-lg md:text-xl text-slate-600 mb-10 max-w-2xl font-light">
-              A seamless civic and legal complaint registration platform for rural and tier-2/3 India. 
-              Simply speak your problem, and AI will automatically file it for you.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 mb-16">
-              <button 
-                onClick={handleFileComplaintClick}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
-                Speak Your Problem
-              </button>
-              <button 
-                onClick={handleFileComplaintClick}
-                className="flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 hover:border-primary-200 hover:bg-primary-50 px-8 py-4 rounded-full text-lg font-semibold transition-all shadow-sm hover:shadow-md transform hover:-translate-y-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M8 12h8"></path><path d="M12 8v8"></path></svg>
-                Manual Entry
-              </button>
-            </div>
-
-            {/* Feature Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl text-left">
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-green"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>
-                </div>
-                <div className="w-12 h-12 bg-brand-green/10 text-brand-green rounded-xl flex items-center justify-center mb-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg>
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-3">Civic Track</h3>
-                <p className="text-slate-600 leading-relaxed">
-                  Report potholes, streetlight issues, garbage buildup, or water supply disruptions. Routed directly to municipal departments.
-                </p>
-              </div>
-              
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-orange"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path></svg>
-                </div>
-                <div className="w-12 h-12 bg-brand-orange/10 text-brand-orange rounded-xl flex items-center justify-center mb-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path><path d="m9 12 2 2 4-4"></path></svg>
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-3">Legal Track</h3>
-                <p className="text-slate-600 leading-relaxed">
-                  Instant e-complaint generation for non-cognizable issues. Major incidents get verified and tracked with full transparency.
-                </p>
-              </div>
-            </div>
-          </>
+      {/* ── MAIN CONTENT ── */}
+      <main className="flex-1 w-full">
+        {currentView === 'home' && (
+          <HomePage
+            onFileComplaint={() => setCurrentView('file')}
+            onTrack={() => openTracker()}
+            onDashboard={() => setCurrentView('dashboard')}
+          />
         )}
+        {currentView === 'file'         && <div className="max-w-2xl mx-auto px-4 py-6 pb-28"><ComplaintForm onBack={() => setCurrentView('home')} /></div>}
+        {currentView === 'track'        && <div className="max-w-2xl mx-auto px-4 py-6 pb-28"><TrackStatus onBack={() => setCurrentView('home')} defaultRef={trackRef} /></div>}
+        {currentView === 'my_complaints'&& <div className="max-w-2xl mx-auto px-4 py-6 pb-28"><MyComplaints onBack={() => setCurrentView('home')} onTrack={openTracker} /></div>}
+        {currentView === 'admin'        && <div className="px-4 py-6 pb-28"><AdminPanel onBack={() => setCurrentView('home')} /></div>}
+        {currentView === 'dashboard'    && <div className="px-4 py-6 pb-28"><PublicDashboard onBack={() => setCurrentView('home')} /></div>}
       </main>
-      
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-8 mt-auto relative z-10">
-        <div className="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm">
-          &copy; {new Date().getFullYear()} NagrikTrack. Designed for accessibility and transparency.
+
+      {/* ── BOTTOM NAV (mobile) ── */}
+      <BottomNav currentView={currentView} onNavigate={handleBottomNav} />
+
+      {/* ── FOOTER (desktop) ── */}
+      <footer className="hidden md:block border-t border-slate-200 bg-white py-6 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between text-sm text-slate-400">
+          <span className="font-semibold text-slate-600">🌿 E-Samadhan</span>
+          <span>© {new Date().getFullYear()} — Built for Bharat's last mile</span>
         </div>
       </footer>
-
-      {/* Login Modal */}
-      {showLogin && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative animate-in fade-in zoom-in duration-200">
-            <button 
-              onClick={() => { setShowLogin(false); setStep(1); setError(''); }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-            </button>
-            
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome Back</h2>
-            <p className="text-slate-500 mb-6">
-              {step === 1 ? 'Enter your phone number to continue' : 'Enter the OTP sent to your phone'}
-            </p>
-
-            {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium mb-6 flex items-center gap-2">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg>
-                {error}
-              </div>
-            )}
-
-            {step === 1 ? (
-              <form onSubmit={handleSendOtp} className="flex flex-col gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">+91</span>
-                    <input 
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="9876543210"
-                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-                      required
-                    />
-                  </div>
-                </div>
-                <button 
-                  type="submit"
-                  className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-md mt-2"
-                >
-                  Send OTP
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
-                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Enter OTP</label>
-                  <input 
-                    type="text"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    placeholder="123456"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all tracking-widest text-center text-lg font-bold"
-                    required
-                  />
-                  <p className="text-xs text-slate-400 text-center mt-2">Hackathon test OTP is 123456</p>
-                </div>
-                <button 
-                  type="submit"
-                  className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-md mt-2"
-                >
-                  Verify & Login
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
 
     </div>
   );

@@ -4,10 +4,10 @@ const { body, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const db = require('../db');
 const { generateRef } = require('../utils/generateRef');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenAI } = require('@google/genai');
 
-const anthropic = new Anthropic({
-  apiKey: process.env.LLM_API_KEY || 'dummy_key',
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY || 'dummy_key',
 });
 
 // @route   POST /api/complaints/voice-parse
@@ -16,7 +16,6 @@ const anthropic = new Anthropic({
 router.post(
   '/voice-parse',
   [
-    auth,
     body('transcript', 'Transcript is required').not().isEmpty()
   ],
   async (req, res) => {
@@ -28,27 +27,28 @@ router.post(
     const { transcript } = req.body;
 
     try {
-      const response = await anthropic.messages.create({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 1024,
-        system: "You are extracting structured complaint data from a citizen's spoken complaint in Hindi or English. Return ONLY valid JSON with fields: type (civic or legal), category (pothole/streetlight/garbage/water/theft/assault/lost_item/other), description (cleaned up, 2-3 lines), urgency (low/medium/high), location_mentioned (any place name mentioned or null). Do not include any text outside the JSON.",
-        messages: [
-          { role: 'user', content: transcript }
-        ]
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: transcript,
+        config: {
+          systemInstruction: "You are extracting structured complaint data from a citizen's spoken complaint in Hindi or English. Return ONLY valid JSON with fields: type (civic or legal), category (pothole/streetlight/garbage/water/theft/assault/lost_item/other), description (cleaned up, 2-3 lines), urgency (low/medium/high), location_mentioned (any place name mentioned or null). Do not include any markdown formatting or text outside the JSON.",
+          responseMimeType: 'application/json',
+          temperature: 0.2
+        }
       });
 
-      const jsonString = response.content[0].text;
+      const jsonString = response.text;
       const parsedData = JSON.parse(jsonString);
 
       res.json(parsedData);
     } catch (err) {
       console.error(err.message);
       // For hackathon fallback if API key is invalid/dummy
-      if (err.status === 401 || err.message.includes('API key')) {
+      if (err.status === 401 || err.status === 403 || err.message.includes('API key') || err.message.includes('key')) {
         return res.json({
           type: 'civic',
           category: 'pothole',
-          description: `[MOCK] ${transcript}`,
+          description: `[MOCK GEMINI] ${transcript}`,
           urgency: 'medium',
           location_mentioned: null
         });
@@ -64,11 +64,12 @@ router.post(
 router.post(
   '/',
   [
-    auth,
     [
       body('type', 'Type must be civic or legal').isIn(['civic', 'legal']),
       body('category', 'Category is required').not().isEmpty(),
       body('description', 'Description is required').not().isEmpty(),
+      body('full_name', 'Name is required').not().isEmpty(),
+      body('mobile', 'Mobile number is required').isLength({ min: 10, max: 10 })
     ]
   ],
   async (req, res) => {
@@ -77,11 +78,22 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { type, category, subcategory, description, location_lat, location_lng, address_text, cognizable } = req.body;
-    const user_id = req.user.id;
+    const { type, category, subcategory, description, location_lat, location_lng, address_text, cognizable, full_name, mobile } = req.body;
     const reference_number = generateRef();
 
     try {
+      // Find or create user based on mobile number
+      let userRes = await db.query('SELECT id FROM users WHERE phone = $1', [mobile]);
+      let user_id;
+      if (userRes.rows.length > 0) {
+        user_id = userRes.rows[0].id;
+      } else {
+        const insertUser = await db.query(
+          'INSERT INTO users (name, phone, role) VALUES ($1, $2, $3) RETURNING id',
+          [full_name, mobile, 'citizen']
+        );
+        user_id = insertUser.rows[0].id;
+      }
       let assigned_department = null;
       let status = 'filed';
 

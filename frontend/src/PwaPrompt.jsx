@@ -65,7 +65,7 @@ function PwaPrompt() {
             N
           </div>
           <div>
-            <h4 className="font-bold text-slate-800 text-sm">Install NagrikTrack</h4>
+            <h4 className="font-bold text-slate-800 text-sm">Install E-Samadhan</h4>
             <p className="text-xs text-slate-500">Access offline and track easily.</p>
           </div>
         </div>
