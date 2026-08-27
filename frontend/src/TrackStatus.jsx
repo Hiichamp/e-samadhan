@@ -15,7 +15,7 @@ function TrackStatus({ onBack, defaultRef = '' }) {
     setData(null);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/status/${refNumber.trim()}`);
+      const res = await fetch(`/api/status/${refNumber.trim()}`);
       const resData = await res.json();
       
       if (res.ok) {

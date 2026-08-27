@@ -27,11 +27,15 @@ const Icon = {
 function StatCard({ icon, value, label, color }) {
   return (
     <div className="bg-white rounded-2xl p-5 flex items-center gap-4 border border-slate-100 shadow-sm">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
         <span className="w-6 h-6">{icon}</span>
       </div>
-      <div>
-        <p className="text-2xl font-black text-slate-900">{value}</p>
+      <div className="flex-1">
+        {value === '...' ? (
+          <div className="h-8 w-20 bg-slate-200 rounded-md animate-pulse mb-1"></div>
+        ) : (
+          <p className="text-2xl font-black text-slate-900">{value}</p>
+        )}
         <p className="text-xs text-slate-500 font-medium">{label}</p>
       </div>
     </div>
@@ -96,7 +100,7 @@ function HomePage({ onFileComplaint, onTrack, onDashboard }) {
   });
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/dashboard/stats')
+    fetch('/api/dashboard/stats')
       .then(res => res.json())
       .then(data => {
         setStats({
@@ -180,6 +184,60 @@ function HomePage({ onFileComplaint, onTrack, onDashboard }) {
           tag="Transparent"
           tagColor="bg-amber-100 text-amber-800"
         />
+      </div>
+
+      {/* About E-Samadhan */}
+      <div className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-slate-100 mb-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary-50 rounded-full blur-3xl -mr-20 -mt-20 opacity-60"></div>
+        <div className="relative z-10 max-w-3xl">
+          <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center">💡</span>
+            About E-Samadhan
+          </h2>
+          
+          <div className="space-y-5 text-slate-600 leading-relaxed font-medium">
+            <p>
+              Every year, thousands of citizens walk into a police station to report a theft — and walk out with a complaint that says "lost." Not stolen. Lost. Because it's easier to write, easier to close, and easier to forget.
+            </p>
+            <p>
+              This happened to my family. Twice. Once in 2023, when my own phone was stolen and the report was quietly changed to "lost." Again in 2025, when the same thing happened to my grandfather in the middle of a market, in broad daylight. Both times, we walked away with no case, no tracking, and no accountability. Just silence.
+            </p>
+            <p className="text-lg font-bold text-slate-800">
+              E-Samadhan exists because filing a complaint should not be harder than the crime itself.
+            </p>
+            <p>
+              We built a platform where any citizen — regardless of education, literacy, or comfort with technology — can register a complaint simply by speaking. No confusing forms. No jargon. Just describe the problem in your own words, and AI structures it into a proper complaint for you to review and submit.
+            </p>
+            
+            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 my-6">
+              <p className="font-bold text-slate-800 mb-3">Every complaint gets:</p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <span className="text-primary-500 mt-1">✓</span>
+                  <span>Instant routing to the right department or nearest police station</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary-500 mt-1">✓</span>
+                  <span>A dedicated officer or team assigned with a resolution deadline</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary-500 mt-1">✓</span>
+                  <span>A unique tracking code, so you can check the status anytime — from home, without ever standing in a queue again</span>
+                </li>
+              </ul>
+            </div>
+            
+            <p>
+              We believe accountability shouldn't be a privilege reserved for those who know how to "follow up." It should be built into the system itself.
+            </p>
+            <p>
+              This platform started as one person's frustration. We believe it can become every citizen's right to be heard — and followed through on.
+            </p>
+            <p className="text-primary-700 font-bold italic mt-8">
+              "Small steps, not giant leaps, are what truly move the world forward."
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Dashboard CTA */}

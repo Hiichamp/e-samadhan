@@ -23,7 +23,7 @@ function AdminPanel({ onBack }) {
 
   const fetchComplaints = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/admin/complaints', {
+      const res = await fetch('/api/admin/complaints', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -46,7 +46,7 @@ function AdminPanel({ onBack }) {
 
     setUpdateLoading(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/complaints/${selectedComplaint.id}/status`, {
+      const res = await fetch(`/api/admin/complaints/${selectedComplaint.id}/status`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',

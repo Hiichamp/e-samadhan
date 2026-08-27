@@ -12,7 +12,7 @@ function PublicDashboard({ onBack }) {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/dashboard/stats');
+        const res = await fetch('/api/dashboard/stats');
         const resData = await res.json();
         
         if (res.ok) {
@@ -31,9 +31,31 @@ function PublicDashboard({ onBack }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-12 h-12 rounded-full border-4 border-primary-600 border-t-transparent animate-spin mb-4"></div>
-        <p className="text-slate-500 font-medium">Crunching civic data...</p>
+      <div className="bg-white/50 rounded-3xl w-full max-w-7xl animate-pulse p-4 md:p-8">
+        <div className="mb-10 flex flex-col md:flex-row items-center justify-between">
+          <div className="w-full md:w-1/2">
+            <div className="h-10 bg-slate-200 rounded-lg w-3/4 mb-3"></div>
+            <div className="h-5 bg-slate-200 rounded w-1/2"></div>
+          </div>
+          <div className="mt-6 md:mt-0 bg-white p-4 rounded-2xl w-full md:w-64 h-24 border border-slate-100 flex items-center gap-4">
+            <div className="w-12 h-12 bg-slate-200 rounded-full shrink-0"></div>
+            <div className="w-full">
+              <div className="h-3 bg-slate-200 rounded w-full mb-2"></div>
+              <div className="h-8 bg-slate-200 rounded w-2/3"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <div className="bg-white p-8 rounded-3xl h-[400px] border border-slate-100">
+            <div className="h-6 bg-slate-200 rounded w-1/2 mb-8"></div>
+            <div className="h-full bg-slate-100 rounded-xl"></div>
+          </div>
+          <div className="bg-white p-8 rounded-3xl h-[400px] border border-slate-100">
+            <div className="h-6 bg-slate-200 rounded w-1/2 mb-8"></div>
+            <div className="h-full bg-slate-100 rounded-xl"></div>
+          </div>
+        </div>
       </div>
     );
   }

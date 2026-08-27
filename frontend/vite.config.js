@@ -5,6 +5,14 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      }
+    }
+  },
   plugins: [
     react(), 
     tailwindcss(),
@@ -12,10 +20,10 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'NagrikTrack',
-        short_name: 'NagrikTrack',
+        name: 'E-Samadhan',
+        short_name: 'E-Samadhan',
         description: 'Civic & Legal Complaint Platform for Rural India',
-        theme_color: '#0284c7', // Primary blue
+        theme_color: '#0B3D91', // Primary blue
         background_color: '#f8fafc',
         display: 'standalone',
         icons: [
