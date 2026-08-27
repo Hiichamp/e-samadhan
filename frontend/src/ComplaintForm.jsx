@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { API_URL } from './config';
 
 /* ═══════════════════════════════════════════════════════
    CATEGORY DATA
@@ -414,7 +415,7 @@ function MainWizard({ onSuccess }) {
         extra_details: extraData,
         photos: photos.map(p => p.url),
       };
-      const res = await fetch('/api/complaints', {
+      const res = await fetch(`${API_URL}/api/complaints`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -802,7 +803,7 @@ function VoiceMode({ selectedCategory, onSuccess }) {
     if (!transcript.trim()) { setError('Kuch nahi suna. Mic tap karke boliye.'); return; }
     setPhase('analyzing');
     try {
-      const res = await fetch('/api/complaints/voice-parse', {
+      const res = await fetch(`${API_URL}/api/complaints/voice-parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript }),
@@ -824,7 +825,7 @@ function VoiceMode({ selectedCategory, onSuccess }) {
     if (!form.full_name || !form.mobile) { setError('Please fill your name and mobile number.'); return; }
     setSubmitting(true); setError('');
     try {
-      const res = await fetch('/api/complaints', {
+      const res = await fetch(`${API_URL}/api/complaints`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, voice_transcript: transcript }),

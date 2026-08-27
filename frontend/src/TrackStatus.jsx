@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_URL } from './config';
 
 function TrackStatus({ onBack, defaultRef = '' }) {
   const [refNumber, setRefNumber] = useState(defaultRef);
@@ -15,7 +16,7 @@ function TrackStatus({ onBack, defaultRef = '' }) {
     setData(null);
 
     try {
-      const res = await fetch(`/api/status/${refNumber.trim()}`);
+      const res = await fetch(`${API_URL}/api/status/${refNumber.trim()}`);
       const resData = await res.json();
       
       if (res.ok) {

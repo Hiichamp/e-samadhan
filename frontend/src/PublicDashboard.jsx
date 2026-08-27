@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from './config';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LineChart, Line, CartesianGrid, Legend 
@@ -12,7 +13,7 @@ function PublicDashboard({ onBack }) {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch('/api/dashboard/stats');
+        const res = await fetch(`${API_URL}/api/dashboard/stats`);
         const resData = await res.json();
         
         if (res.ok) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { API_URL } from './config';
 
 function AdminPanel({ onBack }) {
   const { token, user } = useAuth();
@@ -23,7 +24,7 @@ function AdminPanel({ onBack }) {
 
   const fetchComplaints = async () => {
     try {
-      const res = await fetch('/api/admin/complaints', {
+      const res = await fetch(`${API_URL}/api/admin/complaints`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -46,7 +47,7 @@ function AdminPanel({ onBack }) {
 
     setUpdateLoading(true);
     try {
-      const res = await fetch(`/api/admin/complaints/${selectedComplaint.id}/status`, {
+      const res = await fetch(`${API_URL}/api/admin/complaints/${selectedComplaint.id}/status`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',

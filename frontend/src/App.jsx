@@ -5,6 +5,7 @@ import TrackStatus from './TrackStatus';
 
 import PublicDashboard from './PublicDashboard';
 import PwaPrompt from './PwaPrompt';
+import { API_URL } from './config';
 
 /* ─────────────────── tiny SVG icons ─────────────────── */
 const Icon = {
@@ -100,7 +101,7 @@ function HomePage({ onFileComplaint, onTrack, onDashboard }) {
   });
 
   useEffect(() => {
-    fetch('/api/dashboard/stats')
+    fetch(`${API_URL}/api/dashboard/stats`)
       .then(res => res.json())
       .then(data => {
         setStats({
